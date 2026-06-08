@@ -6,6 +6,7 @@ import random
 import os
 import re
 from google import genai
+from google.genai import types
 from docx import Document
 from pypdf import PdfReader
 from pptx import Presentation
@@ -25,15 +26,23 @@ def clean_file_name(name):
 
 def clean_ai_json(ai_output):
     """
-    Removes markdown code fences if Gemini wraps JSON in them.
+    Cleans Gemini output and extracts the JSON list from the response.
     """
     ai_output = ai_output.strip()
 
+    # Remove markdown code fences if present
     if ai_output.startswith('```json'):
         ai_output = ai_output.replace('```json', '').replace('```', '').strip()
 
     elif ai_output.startswith('```'):
         ai_output = ai_output.replace('```', '').strip()
+
+    # Extract only the JSON array if Gemini adds extra text before or after it
+    start_index = ai_output.find('[')
+    end_index = ai_output.rfind(']')
+
+    if start_index != -1 and end_index != -1:
+        ai_output = ai_output[start_index:end_index + 1]
 
     return ai_output
 
@@ -348,6 +357,10 @@ Rules:
 - If the selected card type is Mixed, include definition, application, and distinction cards.
 - Do not create cards from irrelevant headers, page numbers, or formatting artifacts.
 - Keep answers brief enough for flashcard use, but not so brief that they lose key meaning.
+- Your entire response must start with [ and end with ].
+- Do not write "Here are the cards".
+- Do not include notes, comments, or explanations.
+- Escape all quotation marks inside answers properly.
 
 Study material:
 {final_study_text}
@@ -357,7 +370,10 @@ Study material:
             with st.spinner('Generating cards...'):
                 response = client.models.generate_content(
                     model='gemini-2.5-flash',
-                    contents=prompt
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                    response_mime_type='application/json'
+                    )
                 )
 
             ai_output = response.text.strip()
