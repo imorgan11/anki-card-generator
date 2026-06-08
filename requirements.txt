@@ -1,0 +1,7 @@
+streamlit
+pandas
+google-genai
+python-docx
+pypdf
+python-pptx
+genanki
